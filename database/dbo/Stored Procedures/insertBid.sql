@@ -14,7 +14,7 @@ begin
         into #LastBidForProduct
         from Bid with (xlock)
         where ProductId = @ProductId
-        order by Timestamp
+        order by Timestamp desc;
 
         if @Amount > isnull((select Amount from #LastBidForProduct), 0)
         begin
