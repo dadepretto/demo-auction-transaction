@@ -6,7 +6,7 @@
 	],
 	"settings": {
 		"dataworkspace.projects": [
-			"DemoAuctionTransaction/DemoAuctionTransaction.sqlproj"
+			"./database/DemoAuctionTransaction.sqlproj"
 		]
 	}
 }
