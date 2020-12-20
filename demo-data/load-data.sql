@@ -1,5 +1,5 @@
 bulk insert Person
-from '/var/opt/mssql/staging/Person.csv'
+from '<path_to_folder>/Person.csv' -- eg. '/var/opt/mssql/staging/Person.csv'
 with (
     format = 'csv',
     firstrow = 2,
@@ -7,7 +7,7 @@ with (
 );
 
 bulk insert Product
-from '/var/opt/mssql/staging/Product.csv'
+from '<path_to_folder>/Product.csv' -- eg. '/var/opt/mssql/staging/Product.csv'
 with (
     format = 'csv',
     firstrow = 2,
@@ -15,7 +15,7 @@ with (
 );
 
 bulk insert Bid
-from '/var/opt/mssql/staging/Bid.csv'
+from '<path_to_folder>/Bid.csv' -- eg. '/var/opt/mssql/staging/Bid.csv'
 with (
     format = 'csv',
     firstrow = 2,
