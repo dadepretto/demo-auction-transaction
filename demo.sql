@@ -2,11 +2,12 @@ raiserror ('Wait! Execute one block at the time!', 16, 1);
 return;
 
 -- Introduction --
-    /* Our goal for this demo is to find a correct and maybe performant way to
-       apply a specific business logic to our bids data. In particular we need
-       to forbid the insertion of bids with lower amount but with a greater
-       timestamp, and the solutions should be consistent at all concurrency
-       levels. For example the 2nd query of this section shouldn't be allowed.
+    /* Our goal for this demo is to find a correct - and possibly performant -
+       way to apply specific business logic to our bids data. In particular, we
+       need to forbid the insertion of bids that have a lower amount and a
+       greater timestamp, and the solutions should be consistent at all
+       concurrency levels.
+       For example, the 2nd query of this section shouldn't be allowed.
     */
 
     insert into Bid (PersonId, ProductId, Amount, Timestamp)
@@ -16,9 +17,9 @@ return;
     values (1, 1, 80, '2020-01-01 10:00:01');
 
 -- An attempt... --
-    /* To solve this problem let's see what a common developer would do and to
-       recreate the scenario let's select a random product which has at least
-       4 or more bids.
+    /* Let's first approach the problem as a typical developer would.
+       For the sake of this example, let's select a random product which has at
+       least four bids.
     */
 
     select ProductId
@@ -31,9 +32,10 @@ return;
 
     -- I got 951, so I'll use this throughout the demo
 
-    /* Let's build a simple logic to try solve the problem. We check the last
-       amount for that particular product and, if it's equal or greater than the
-       bid we want to insert, we block the user, otherwise we insert the row.
+    /* Let's develop a simple logic to solve the problem.
+       We check whether the amount of the most recent bid for the given product
+       is greater or equal than the current one. In such a case, we block the
+       user. Otherwise, we insert the row.
     */
 
     declare @Amount money = (
@@ -57,32 +59,33 @@ return;
         print 'Bid inserted successfully, thanks!';
     end
 
-    /* This solution looks fine BUT, if we look close enough we find out that
-       between the data scan and the insert there is no guarantee that someone
-       else isn't going to add a new row and invalidate our check, leaving the
-       data in an inconsistent state.
-       The following graph represents an example of this scenario.
+    /* This solution looks fine. However, after taking a closer look, we find
+       out that between the data scan and the insert there is no guarantee that
+       someone else isn't going to add a new row and invalidate our check,
+       leaving the data in an inconsistent state.
+
+       The following diagram represents an example of this scenario.
 
        Session 1 --- |READ (last = 170) --- |CHECK (OK) --- |INSERT (200)
-       Session 2 ----|----- |READ (last = 170) --- |CHECK (OK) --- |INSERT (190)
-       Time ---------|------|---------------|------|--------|------|--------->
+       Session 2 ---------- |READ (last = 170) --- |CHECK (OK) --- |INSERT (190)
+       Time      ----|------|---------------|------|--------|------|----------->
 
-       Our goal then is to ensure that no one will be able to take any decision
-       based on that specific record while we are. To achive this, we probably
-       need to LOCK the record while we are making decision in a way that no one
-       will be able to read it until we unlock it.
+       To overcome this issue, we must ensure that no one will be able to take
+       any decision based on that specific record while we are. To achieve this,
+       we probably need to LOCK the record so that no one will be able to read
+       it until our operation completes.
 
        In SQL Server (and other DBMS as well) has mainly two types of locks:
         - SHARED (S): Used by default when reading
         - EXCLUSIVE (X): Used by default when writing/updating
 
-       A shared lock (S) is compatile with another shared lock (meaning that
-       if a session is reading a peace of information other sessions can read it
-       at the same time), but a exclusive lock (X) is incompatible with any
-       other type of locks, both shared (S) and exclusive (X).
+       A shared lock (S) is compatible with another shared lock. Hence, if a
+       session is reading a piece of information, other sessions can read it at
+       the same time. On the other hand, an exclusive lock (X) is incompatible
+       with any other type of locks, both shared (S) and exclusive (X).
 
-       By applying an exclusive lock we ensure that - until we release it - no
-       one will be able to read the same object.
+       By applying an exclusive lock we ensure that no one will be able to read
+       our same object until we release it.
     */
 
 -- The solution --
@@ -97,12 +100,11 @@ return;
     offset 0 rows
     fetch first 1 row only;
 
-    /* Altough this seems to work, the locks are released as soon as the scan
-       completes, meaning that if we try to apply the same logic as before after
-       the scan, we would be as vulnerable as before in terms of consistency.
-       To solve this new problem, we need to wrap the logic in a transaction,
-       to ensure the exclusive lock (X) is held until we eventually commit or
-       rollback the transaction itself.
+    /* Although this looks correct, locks are released as soon as the scan
+       completes. Therefore, we are as vulnerable as before in terms of
+       consistency. To overcome this new problem, we need to wrap the logic in a
+       transaction, so that the exclusive lock (X) is held until we eventually
+       commit or rollback the transaction itself.
     */
 
     begin transaction;
@@ -136,8 +138,8 @@ return;
                             else 5
         end
     );
-    
-    /* On my system i got this result:
+
+    /* On my system I got this result:
 
        TheSession   IsRequestingA   OfType	ForTheObject    whichIsA	AndItIsA
        58           LOCK	        S	            	    DATABASE	GRANT
@@ -152,17 +154,19 @@ return;
        58           LOCK	        X	    (cb89896b69df)  KEY	        GRANT
        58           LOCK	        X	    (54a829a0754e)  KEY	        GRANT
 
-       The first lock is a shared one on the database, which is pretty normal
-       and means that while we have an open session on the database itself no
-       one can take an exclusive lock on it.
-       Then there is an intent exclusive lock (IX) on the object (the Bid table)
-       and locks on pages and keys. This means that our session is holding an
-       exclusive lock on some rows (keys) and some intent locks on their parents
-       (pages and the table itself) to signal that it could eventually lock
-       those as well.
+       The first row shows a shared lock on the database. It is pretty normal
+       and means that as long as we have an open session on the database itself,
+       no one can take an exclusive lock on it.
 
-       We can prove that we have a lock on the resource by opening a new session
-       and executing the same transaction. In the other SSMS/ADF tab run:
+       It follows an intent exclusive lock (IX) on the object (the Bid table)
+       and other locks on pages and keys. They mean that our session is holding
+       an exclusive lock on some rows (keys) and some intent locks on their
+       parents (pages and the table itself) to signal that it could eventually
+       lock those as well.
+
+       We can double-check that we have a lock on the resource by opening a new
+       session and executing the same transaction.
+       In the other SSMS/ADF tab run:
     */
 
     begin transaction;
@@ -216,14 +220,14 @@ return;
        59	        LOCK	        X	    (a83f3276fc11)  KEY	        GRANT
        59	        LOCK	        X	    (cb89896b69df)  KEY	        GRANT
 
-       As you can see, the session 58 (the other session) is waiting to lock
-       the key (d344f69b7577) which is currently blocked by the transaction of
-       the session 59, where the lock has been granted.
-       Now inside session 59 we can apply all the logic we need to and be sure
-       that no one is going to mess up with our data while we are evaluating
-       conditions!
+       As you can see, session 58 (the other session) is waiting to lock key
+       `d344f69b7577`, which is currently blocked by the transaction of session
+       59, where the lock has been granted.
 
-       Now commit the transaction in the current session:
+       Now we can safely apply any logic inside session 59 and be sure that no
+       one else will mess up with our data while we are evaluating conditions!
+
+       Let's commit the transaction in the current session:
     */
 
     commit;
@@ -231,14 +235,15 @@ return;
     /* As you can see, as soon as you hit Run, the other session unlocked and
        the query completed.
 
-       Now close also the other session by committing the transaction:
+       Let's close also the other session by committing the transaction:
     */
-    
+
     commit;
 
--- Performance consideration -- 
-    /* We solved the logic problem BUT we are not done yet... if you stop here,
+-- Performance consideration --
+    /* We solved the logic problem BUT we are not done yet... If you stop here,
        expect a call from your client/help desk/project manager very soon!
+
        Let's consider the structure of a record in the Bid table:
 
        Name         Type            Size
@@ -247,16 +252,17 @@ return;
        ProductId    int             4 bytes
        Amount       money           8 bytes
        Timestamp    datetime2 (7)   8 bytes
-       TOTAL ---------------------- 28 bytes
+       -------------------------------------
+       TOTAL                       28 bytes
 
-       Knowing that SQL Server saves data in 8KB pages, we can approximate that
-       every page can fit (8192 / 28) ~ 290 rows, counting some page management
-       overhead. Knowing the table has 1000 rows and the fact that the primary
-       key is clustered (the table is a b-tree) we can say that all the table is
-       contained in (1000 / 290) in 4 pages (leaves) + 1 page (root) = 5 pages.
+       Since SQL Server saves data in 8KB pages, we can approximate that every
+       page can fit (8192 / 28) ~ 290 rows, counting some page management
+       overhead. Knowing there are 1000 rows and the fact that the primary key
+       is clustered (the table is a b-tree) we can say that the whole table fits
+       in (1000 / 290) 4 pages (leaves) + 1 page (root) = 5 pages.
 
        If you recall the previous query to DMV sys.dm_tran_lock, we were locking
-       exactly 5 pages.. this means that the session transaction is locking the
+       exactly 5 pages. This means that the session transaction is locking the
        entire table! We can prove this by querying a specific product in this
        session using the usual code:
     */
@@ -284,12 +290,13 @@ return;
     /* As you can see, the second query is locked even though we are asking for
        different products!
        This behaviour is normal at this stage because of the operator SQL Server
-       used to access the Bid Table: a clustered index scan. This operator can
-       be seen if you ask SSMS/ADF to show the estimated/actual execution plan.
-       What "clustered index scan" means is that SQL Server is going to read 
+       used to access the Bid Table: a clustered index scan. You can check it by
+       asking SSMS/ADF to show the estimated/actual execution plan.
+
+       What "clustered index scan" means is that SQL Server is going to read
        (and lock) every row in the table!
 
-       To prevent that we need to give SQL Server a way to seek directly into
+       To prevent that, we need to give SQL Server a way to seek directly into
        the row(s) it needs in order to execute the query. This tool is naturally
        an index!
 
@@ -299,24 +306,25 @@ return;
         commit;
 
     /* The nonclustered (secondary) index we are going to create will need to be
-       sorted first by ProductId and then by Timestamp, this way SQL Server is
+       sorted first by ProductId and then by Timestamp, so that SQL Server is
        going to seek directly into the ProductId range and then directly into
        the first (or last - depending on the order) Timestamp.
+
        We can also include the Amount or other columns to prevent a Key Lookup
        operation, but given the fact that we expect only one row to come out
        from that query, we can ignore the small lookup cost vs. the storage cost
        of replicating another 8 bytes column, especially in larger tables.
 
-       Our index than should look like something like this:
+       Our index will look something like this:
     */
 
     drop index if exists IX_Bid_ProductId_Timestmap
         on Bid;
-    
+
     create index IX_Bid_ProductId_Timestmap
         on Bid(ProductId asc, Timestamp desc);
 
-    -- Now let's run the same transaction again and see what locks it takes:
+    -- Now, let's run the same transaction again and see what locks it takes:
 
     begin transaction;
 
@@ -347,6 +355,7 @@ return;
     );
 
     /* On my machine i got there results:
+
        TheSession	IsRequestingA	OfType	ForTheObject	whichIsA	AndItIsA
        59	        LOCK	        S	                    DATABASE	GRANT
        59	        LOCK	        IX	                  	OBJECT	    GRANT
@@ -360,7 +369,7 @@ return;
        created and the row on the clustered index PK_Bid for the Key Lookup of
        the Amount column.
 
-       We can prove that the specific row is locked for other transaction by
+       We can prove this specific row is locked for other transactions by
        running the same query again in another window:
     */
 
@@ -373,9 +382,11 @@ return;
     offset 0 rows
     fetch first 1 row only;
 
-    /* As you can see, the query is getting blocked by the lock of the current
-       one. Than we can stop the query in the second window and prove that other
-       rows aren't blocked by running the following query:
+    /* As you can see, the second query is left hanging by the lock of the first
+       one.
+
+       Let's now ensure the that other rows aren't blocked by running the
+       following query:
     */
 
     begin transaction;
@@ -387,20 +398,20 @@ return;
     offset 0 rows
     fetch first 1 row only;
 
-    /* You can experiment also with other rows and see the status of the DMV
-       sys.dm_tran_locks. What you'll see is that SQL Server now knows which
-       rows we really want to lock and act accordingly, greatly reducing
-       blocking and greatly enhancing the concurrency of our system if we have
-       lots of different products.
+    /* You can also experiment with other rows and see the status of the DMV
+       sys.dm_tran_locks. You'll notice that SQL Server now knows which rows we
+       want to lock and act accordingly, effectively reducing blocking and
+       enhancing the concurrency of our system in the case we have lots of
+       different products.
 
-       To clean up the sessions, commit both ones.
+       To clean up the sessions, commit all transactions.
     */
 
     commit;
 
 -- Wrap up --
-    /* Now we can create a stored procedure that safely encapsulate our new
-       transactional safe but still product-wise concurrent business logic:
+    /* Eventually, we can write a stored procedure that safely encapsulates our
+       transactional safe - but still product-wise concurrent - business logic:
     */
 
     go
