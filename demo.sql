@@ -454,7 +454,7 @@ return;
             else
             begin
                 select [BidId], [PersonId], [ProductId], [Amount], [Timestamp]
-                from [#LastBidForProduct]
+                from [#LastBidForProduct];
             end;
 
             commit;
