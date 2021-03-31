@@ -10,10 +10,10 @@ return;
        For example, the 2nd query of this section shouldn't be allowed.
     */
 
-    insert into Bid (PersonId, ProductId, Amount, Timestamp)
+    insert into [dbo].[Bid] ([PersonId], [ProductId], [Amount], [Timestamp])
     values (1, 1, 100, '2020-01-01 10:00:00');
 
-    insert into Bid (PersonId, ProductId, Amount, Timestamp)
+    insert into [dbo].[Bid] ([PersonId], [ProductId], [Amount], [Timestamp])
     values (1, 1, 80, '2020-01-01 10:00:01');
 
 -- An attempt... --
@@ -22,13 +22,13 @@ return;
        least four bids.
     */
 
-    select ProductId
-    from Bid
-    group by ProductId
+    select [ProductId]
+    from [Bid]
+    group by [ProductId]
     having count(*) >= 4
     order by newid()
     offset 0 rows
-    fetch first 1 row only
+    fetch first 1 row only;
 
     -- I got 951, so I'll use this throughout the demo
 
@@ -39,10 +39,10 @@ return;
     */
 
     declare @Amount money = (
-        select Amount
-        from Bid
-        where ProductId = 951
-        order by Timestamp desc
+        select [Amount]
+        from [dbo].[Bid]
+        where [ProductId] = 951
+        order by [Timestamp] desc
         offset 0 rows
         fetch first 1 row only
     );
@@ -50,14 +50,14 @@ return;
     if @Amount >= 200.0000
     begin
         print 'There is already a higher bid, sorry!';
-    end
+    end;
     else
     begin
-        insert into Bid (PersonId, ProductId, Amount, Timestamp)
+        insert into [dbo].[Bid] ([PersonId], [ProductId], [Amount], [Timestamp])
         values (123, 951, 200.0000, sysdatetime());
 
         print 'Bid inserted successfully, thanks!';
-    end
+    end;
 
     /* This solution looks fine. However, after taking a closer look, we find
        out that between the data scan and the insert there is no guarantee that
@@ -93,10 +93,10 @@ return;
        data using an exclusive lock (X) instead of a shared one (S).
     */
 
-    select Amount
-    from Bid with (xlock)
-    where ProductId = 951
-    order by Timestamp desc
+    select [Amount]
+    from [dbo].[Bid] with (xlock)
+    where [ProductId] = 951
+    order by [Timestamp] desc
     offset 0 rows
     fetch first 1 row only;
 
@@ -109,10 +109,10 @@ return;
 
     begin transaction;
 
-    select Amount
-    from Bid with (xlock)
-    where ProductId = 951
-    order by Timestamp desc
+    select [Amount]
+    from [dbo].[Bid] with (xlock)
+    where [ProductId] = 951
+    order by [Timestamp] desc
     offset 0 rows
     fetch first 1 row only;
 
@@ -121,16 +121,16 @@ return;
     */
 
     select
-        request_session_id                  as [TheSession],
-        request_type                        as [IsRequestingA],
-        request_mode                        as [OfType],
-        resource_description                as [ForTheObject],
-        resource_type                       as [whichIsA],
-        request_status                      as [AndItIsA]
-    from sys.dm_tran_locks
-    where resource_database_id = db_id()
-    order by request_session_id, (
-        case resource_type
+        [request_session_id]       as [TheSession],
+        [request_type]             as [IsRequestingA],
+        [request_mode]             as [OfType],
+        [resource_description]     as [ForTheObject],
+        [resource_type]            as [whichIsA],
+        [request_status]           as [AndItIsA]
+    from [sys].[dm_tran_locks]
+    where [resource_database_id] = db_id()
+    order by [request_session_id], (
+        case [resource_type]
             when 'DATABASE' then 1
             when 'OBJECT'   then 2
             when 'PAGE'     then 3
@@ -171,10 +171,10 @@ return;
 
     begin transaction;
 
-    select Amount
-    from Bid with (xlock)
-    where ProductId = 951
-    order by Timestamp desc
+    select [Amount]
+    from [dbo].[Bid] with (xlock)
+    where [ProductId] = 951
+    order by [Timestamp] desc
     offset 0 rows
     fetch first 1 row only;
 
@@ -183,16 +183,16 @@ return;
     */
 
     select
-        request_session_id                  as [TheSession],
-        request_type                        as [IsRequestingA],
-        request_mode                        as [OfType],
-        resource_description                as [ForTheObject],
-        resource_type                       as [whichIsA],
-        request_status                      as [AndItIsA]
-    from sys.dm_tran_locks
-    where resource_database_id = db_id()
-    order by request_session_id, (
-        case resource_type
+        [request_session_id]       as [TheSession],
+        [request_type]             as [IsRequestingA],
+        [request_mode]             as [OfType],
+        [resource_description]     as [ForTheObject],
+        [resource_type]            as [whichIsA],
+        [request_status]           as [AndItIsA]
+    from [sys].[dm_tran_locks]
+    where [resource_database_id] = db_id()
+    order by [request_session_id], (
+        case [resource_type]
             when 'DATABASE' then 1
             when 'OBJECT'   then 2
             when 'PAGE'     then 3
@@ -269,10 +269,10 @@ return;
 
     begin transaction;
 
-    select Amount
-    from Bid with (xlock)
-    where ProductId = 951
-    order by Timestamp desc
+    select [Amount]
+    from [dbo].[Bid] with (xlock)
+    where [ProductId] = 951
+    order by [Timestamp] desc
     offset 0 rows
     fetch first 1 row only;
 
@@ -280,10 +280,10 @@ return;
 
     begin transaction;
 
-    select Amount
-    from Bid with (xlock)
-    where ProductId = 952
-    order by Timestamp desc
+    select [Amount]
+    from [dbo].[Bid] with (xlock)
+    where [ProductId] = 952
+    order by [Timestamp] desc
     offset 0 rows
     fetch first 1 row only;
 
@@ -318,34 +318,34 @@ return;
        Our index will look something like this:
     */
 
-    drop index if exists IX_Bid_ProductId_Timestmap
-        on Bid;
+    drop index if exists [IX_Bid_ProductId_Timestmap]
+        on [dbo].[Bid];
 
-    create index IX_Bid_ProductId_Timestmap
-        on Bid(ProductId asc, Timestamp desc);
+    create index [IX_Bid_ProductId_Timestamp]
+        on [dbo].[Bid]([ProductId] asc, [Timestamp] desc);
 
     -- Now, let's run the same transaction again and see what locks it takes:
 
     begin transaction;
 
-    select Amount
-    from Bid with (xlock)
-    where ProductId = 951
-    order by Timestamp desc
+    select [Amount]
+    from [dbo].[Bid] with (xlock)
+    where [ProductId] = 951
+    order by [Timestamp] desc
     offset 0 rows
     fetch first 1 row only;
 
     select
-        request_session_id                  as [TheSession],
-        request_type                        as [IsRequestingA],
-        request_mode                        as [OfType],
-        resource_description                as [ForTheObject],
-        resource_type                       as [whichIsA],
-        request_status                      as [AndItIsA]
-    from sys.dm_tran_locks
-    where resource_database_id = db_id()
-    order by request_session_id, (
-        case resource_type
+        [request_session_id]       as [TheSession],
+        [request_type]             as [IsRequestingA],
+        [request_mode]             as [OfType],
+        [resource_description]     as [ForTheObject],
+        [resource_type]            as [whichIsA],
+        [request_status]           as [AndItIsA]
+    from [sys].[dm_tran_locks]
+    where [resource_database_id] = db_id()
+    order by [request_session_id], (
+        case [resource_type]
             when 'DATABASE' then 1
             when 'OBJECT'   then 2
             when 'PAGE'     then 3
@@ -375,10 +375,10 @@ return;
 
     begin transaction;
 
-    select Amount
-    from Bid with (xlock)
-    where ProductId = 951
-    order by Timestamp desc
+    select [Amount]
+    from [dbo].[Bid] with (xlock)
+    where [ProductId] = 951
+    order by [Timestamp] desc
     offset 0 rows
     fetch first 1 row only;
 
@@ -391,10 +391,10 @@ return;
 
     begin transaction;
 
-    select Amount
-    from Bid with (xlock)
-    where ProductId = 952
-    order by Timestamp desc
+    select [Amount]
+    from [dbo].[Bid] with (xlock)
+    where [ProductId] = 952
+    order by [Timestamp] desc
     offset 0 rows
     fetch first 1 row only;
 
@@ -422,32 +422,47 @@ return;
     )
     as
     begin
+        set xact_abort, nocount on;
         set transaction isolation level serializable;
 
+        begin transaction;
         begin try
-            begin transaction;
+            select [BidId], [PersonId], [ProductId], [Amount], [Timestamp]
+            into [#LastBidForProduct]
+            from [dbo].[Bid] with (xlock)
+            where [ProductId] = @ProductId
+            order by [Timestamp]
+            offset 0 rows
+            fetch first 1 row only;
 
-            select top 1 *
-            into #LastBidForProduct
-            from Bid with (xlock)
-            where ProductId = @ProductId
-            order by Timestamp
-
-            if @Amount > isnull((select Amount from #LastBidForProduct), 0)
+            if @Amount > isnull((select [Amount] from [#LastBidForProduct]), 0)
             begin
-                insert into Bid (PersonId, ProductId, Amount, Timestamp)
-                output inserted.*
+                insert into [dbo].[Bid] (
+                    [PersonId],
+                    [ProductId],
+                    [Amount],
+                    [Timestamp]
+                )
+                output
+                    [inserted].[BidId],
+                    [inserted].[PersonId],
+                    [inserted].[ProductId],
+                    [inserted].[Amount],
+                    [inserted].[Timestamp]
                 values (@PersonId, @ProductId, @Amount, sysdatetime());
-            end
+            end;
             else
             begin
-                select *
-                from #LastBidForProduct
-            end
+                select [BidId], [PersonId], [ProductId], [Amount], [Timestamp]
+                from [#LastBidForProduct]
+            end;
 
             commit;
         end try
         begin catch
-            while @@trancount > 0 rollback;
+            if @@trancount > 0
+            begin
+                rollback transaction;
+            end;
         end catch
     end
