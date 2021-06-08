@@ -1,16 +1,12 @@
 # demo-auction-transaction
 
 This demo is about SQL Transactions and locking/blocking mechanisms.
-It consists of an example of how to use transactions to protect the data
-integrity of the Bid table of a fictional auction website.
-It also focuses on performance and concurrency by explaining how you can use an
-index to improve these aspects.
+It consists of an example of how to use transactions to protect the data integrity of the Bid table of a fictional auction website.
+It also focuses on performance and concurrency by explaining how you can use an index to improve these aspects.
 
 ## Requirements
 
-To run this demo, you need a SQL Server instance (I wrote it on 2019) and a way
-to query your database using multiple sessions (usually SQL Server Management
-Studio or Azure Data Studio).
+To run this demo, you need a SQL Server instance (I wrote it on 2019) and a way to query your database using multiple sessions (usually SQL Server Management Studio or Azure Data Studio).
 
 ## Steps
 
