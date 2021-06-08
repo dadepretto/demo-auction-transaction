@@ -10,7 +10,7 @@ index to improve these aspects.
 
 To run this demo, you need a SQL Server instance (I wrote it on 2019) and a way
 to query your database using multiple sessions (usually SQL Server Management
-Studio or Azure Data Factor).
+Studio or Azure Data Studio).
 
 ## Steps
 
